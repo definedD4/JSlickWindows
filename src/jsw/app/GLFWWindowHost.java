@@ -3,6 +3,7 @@ package jsw.app;
 import jsw.util.Point;
 import jsw.util.Size;
 import org.lwjgl.glfw.*;
+import org.lwjgl.opengl.GL;
 
 import static org.lwjgl.glfw.GLFW.*;
 
@@ -28,7 +29,7 @@ public abstract class GLFWWindowHost {
         if(handle == 0)
             throw new Exception("Window creation failed.");
 
-        Application.registerWindow(this);
+        Application.instance().registerWindow(this);
 
         glfwMakeContextCurrent(handle);
 
@@ -37,40 +38,42 @@ public abstract class GLFWWindowHost {
         glfwSetWindowCloseCallback(handle, new GLFWWindowCloseCallback() {
             @Override
             public void invoke(long window) {
-                GLFWWindowHost host = Application.getWindow(window);
-                host.onClose();
+                GLFWWindowHost host = Application.instance().getWindow(window);
+                close();
             }
         });
         glfwSetWindowRefreshCallback(handle, new GLFWWindowRefreshCallback() {
             @Override
             public void invoke(long window) {
-                GLFWWindowHost host = Application.getWindow(window);
+                glfwMakeContextCurrent(handle);
+                GLFWWindowHost host = Application.instance().getWindow(window);
                 host.refresh();
             }
         });
         glfwSetWindowPosCallback(handle, new GLFWWindowPosCallback() {
             @Override
             public void invoke(long window, int xpos, int ypos) {
-                GLFWWindowHost host = Application.getWindow(window);
+                GLFWWindowHost host = Application.instance().getWindow(window);
                 host.onMove(new Point(xpos, ypos));
             }
         });
         glfwSetWindowSizeCallback(handle, new GLFWWindowSizeCallback() {
             @Override
             public void invoke(long window, int width, int height) {
-                GLFWWindowHost host = Application.getWindow(window);
+                GLFWWindowHost host = Application.instance().getWindow(window);
                 host.setSize(new Size(width, height));
-                host.onResize(new Size(width, height));
+                host.onResize();
             }
         });
         glfwSetKeyCallback(handle, new GLFWKeyCallback() {
             @Override
             public void invoke(long window, int key, int scancode, int action, int mods) {
-                GLFWWindowHost host = Application.getWindow(window);
+                GLFWWindowHost host = Application.instance().getWindow(window);
                 host.onKeyPress(key, scancode, action, mods);
             }
         });
 
+        GL.createCapabilities();
     }
 
     public long getHandle() {
@@ -107,7 +110,14 @@ public abstract class GLFWWindowHost {
         glfwSwapBuffers(handle);
     }
 
+    public void close() {
+        onClose();
+        destroy();
+    }
+
     public void destroy(){
+        Application.instance().deleteWindow(this);
+        glfwSetWindowShouldClose(handle, GLFW_TRUE);
         glfwDestroyWindow(handle);
     }
 
@@ -117,7 +127,7 @@ public abstract class GLFWWindowHost {
 
     protected abstract void onMove(Point point);
 
-    protected abstract void onResize(Size size);
+    protected abstract void onResize();
 
     protected abstract void onKeyPress(int key, int scancode, int action, int mods);
 }
